@@ -10,8 +10,8 @@ BLACK = (0, 0, 0)
 RED = (255, 0, 0)
 GREEN = (0, 255, 0)
 BLUE = (0, 0, 255)
-NUM_WALLS = 500  # Max number of walls to try
-MIN_WALLS = 500   # Minimum number of walls to start with
+NUM_WALLS = 200  # Max number of walls to try
+MIN_WALLS = NUM_WALLS   # Minimum number of walls to start with
 WALL_INCREMENT = 10  # Number of walls to add in each step
 FREE_RADIUS = 5  # Radius around start and end nodes to keep free of walls
 
@@ -128,10 +128,9 @@ def regenerate_labyrinth(nodes, min_walls, free_radius):
     reset_nodes(nodes)  # Clear existing walls and reset node states
     place_random_walls(nodes, min_walls, free_radius, start, end)
     while not a_star(nodes, start, end):
-        print("No path found. Generating new walls...")
         reset_nodes(nodes)  # Clear existing walls
         place_random_walls(nodes, min_walls, free_radius, start, end)
-    print("Path found!")
+    #print("Path found!")
 
 # Initialize Pygame
 pygame.init()
@@ -146,10 +145,8 @@ start = next(n for n in nodes if n.pos == (0, 0))
 end = next(n for n in nodes if n.pos == (WIDTH // CELL_SIZE - 1, HEIGHT // CELL_SIZE - 1))
 path = []
 
-# Generate the initial labyrinth
-regenerate_labyrinth(nodes, MIN_WALLS, FREE_RADIUS)
-
 # Main loop
+active = False
 running = True
 while running:
     win.fill(WHITE)
@@ -159,12 +156,15 @@ while running:
             running = False
         elif event.type == pygame.KEYDOWN:
             if event.key == pygame.K_r:
-                print("Regenerating labyrinth...")
-                regenerate_labyrinth(nodes, MIN_WALLS, FREE_RADIUS)
+                active = not active
             elif event.key == pygame.K_q:
                 running = False
 
+    if active:
+        regenerate_labyrinth(nodes, MIN_WALLS, FREE_RADIUS)
+
     draw_nodes(nodes)
     pygame.display.flip()
+    pygame.time.delay(50)
 
 pygame.quit()
