@@ -1,57 +1,157 @@
 import pygame
 from sys import exit
+from os.path import join
+import math
 
-WIN_W = 800
-WIN_H = 400
 
-pygame.display.set_caption('yo')
+# Game setup
+WIDTH = 800
+HEIGHT = 600
+FPS = 60
 
-running = True
+# Player settings
+PLAYER_START_X = 400
+PLAYER_START_Y = 500
+PLAYER_SIZE = 1
+PLAYER_SPEED = 8
+GUN_OFFSET_X = 45
+GUN_OFFSET_Y = 20
 
-clock = pygame.time.Clock()
+# Bullet settings
+SHOOT_COOLDOWN = 10
+BULLET_SCALE = 1
+BULLET_SPEED = 20
+BULLET_LIFETIME = 750
 
 pygame.init()
-screen = pygame.display.set_mode((WIN_W, WIN_H))
 
-sky_surf = pygame.Surface((800,300))
-sky_surf.fill('cyan')
+# Creating the window
+screen = pygame.display.set_mode((WIDTH, HEIGHT))
+pygame.display.set_caption("Top Down Shooter")
+clock = pygame.time.Clock()
 
-floor_surf = pygame.Surface((800,100))
-floor_surf.fill('brown')
+# Loads images
+background = pygame.image.load(join('images', 'floor.png')).convert()
 
-snail_surf = pygame.Surface((40,40))
-snail_surf.fill('red')
-snail_rect = snail_surf.get_rect(midbottom = (400, 300))
+class Player(pygame.sprite.Sprite):
+    def __init__(self):
+        super().__init__()
+        self.pos = pygame.math.Vector2(PLAYER_START_X, PLAYER_START_Y)
+        self.image = pygame.transform.rotozoom(pygame.image.load(join('images', 'player.png')).convert_alpha(), 0, PLAYER_SIZE)
+        self.base_player_image = self.image
+        self.hitbox_rect = self.base_player_image.get_rect(center = self.pos)
+        self.rect = self.hitbox_rect.copy()
+        self.speed = PLAYER_SPEED
+        self.shoot = False
+        self.shoot_cooldown = 0
+        self.gun_barrel_offset = pygame.math.Vector2(GUN_OFFSET_X, GUN_OFFSET_Y)
+       
 
-player_surf = pygame.Surface((60, 60))
-player_surf.fill('green')
-player_rect = player_surf.get_rect(midbottom = (700, 300))
+    def player_rotation(self):
+        self.mouse_coords = pygame.mouse.get_pos()
+        self.x_change_mouse_player = (self.mouse_coords[0] - self.hitbox_rect.centerx)
+        self.y_change_mouse_player = (self.mouse_coords[1] - self.hitbox_rect.centery)
+        self.angle = math.degrees(math.atan2(self.y_change_mouse_player, self.x_change_mouse_player))
+        self.image = pygame.transform.rotate(self.base_player_image, -self.angle)
+        self.rect = self.image.get_rect(center = self.hitbox_rect.center)
+       
 
-while running:
-	clock.tick(60)
-	for event in pygame.event.get():
-		if event.type == pygame.QUIT:
-			pygame.quit()
-			exit()
-	
-	screen.blit(sky_surf, (0,0))
-	screen.blit(floor_surf, (0,300))
-	screen.blit(snail_surf, snail_rect)
-	screen.blit(player_surf, player_rect)
+    def user_input(self):
+        self.velocity_x = 0
+        self.velocity_y = 0
 
-	snail_rect.x += -2
+        keys = pygame.key.get_pressed()
 
+        if keys[pygame.K_w]:
+            self.velocity_y = -self.speed
+        if keys[pygame.K_s]:
+            self.velocity_y = self.speed
+        if keys[pygame.K_d]:
+            self.velocity_x = self.speed
+        if keys[pygame.K_a]:
+            self.velocity_x = -self.speed
 
-	mouse_pos = pygame.mouse.get_pos()
-	if player_rect.collidepoint(mouse_pos):
-		print(pygame.mouse.get_pressed())
+        if self.velocity_x != 0 and self.velocity_y != 0: # moving diagonally
+            self.velocity_x /= math.sqrt(2)
+            self.velocity_y /= math.sqrt(2)
 
-	#if player_rect.colliderect(snail_rect):
-	#	pygame.quit()
+        if pygame.mouse.get_pressed() == (1, 0, 0) or keys[pygame.K_SPACE]:
+            self.shoot = True
+            self.is_shooting()
+        else:
+            self.shoot = False
 
-	if snail_rect.right <= 0:
-		snail_rect.left = WIN_W
+    def is_shooting(self): 
+        if self.shoot_cooldown == 0:
+            self.shoot_cooldown = SHOOT_COOLDOWN
+            spawn_bullet_pos = self.pos + self.gun_barrel_offset.rotate(self.angle)
+            self.bullet = Bullet(spawn_bullet_pos[0], spawn_bullet_pos[1], self.angle)
+            bullet_group.add(self.bullet)
+            all_sprites_group.add(self.bullet)
+            
 
-	pygame.display.flip()
+    def move(self):
+        self.pos += pygame.math.Vector2(self.velocity_x, self.velocity_y)
+        self.hitbox_rect.center = self.pos
+        self.rect.center = self.hitbox_rect.center
 
-pygame.quit()
+    def update(self):
+        self.user_input()
+        self.move()
+        self.player_rotation()
+
+        if self.shoot_cooldown > 0:
+            self.shoot_cooldown -= 1
+
+class Bullet(pygame.sprite.Sprite):
+    def __init__(self, x, y, angle):
+        super().__init__()
+        self.image = pygame.image.load(join('images', 'bullet.png')).convert_alpha()
+        self.image = pygame.transform.rotozoom(self.image, 0, BULLET_SCALE)
+        self.rect = self.image.get_rect()
+        self.rect.center = (x, y)
+        self.x = x
+        self.y = y
+        self.angle = angle
+        self.speed = BULLET_SPEED
+        self.x_vel = math.cos(self.angle * (2*math.pi/360)) * self.speed
+        self.y_vel = math.sin(self.angle * (2*math.pi/360)) * self.speed
+        self.bullet_lifetime = BULLET_LIFETIME
+        self.spawn_time = pygame.time.get_ticks() # gets the specific time that the bullet was created
+
+    def bullet_movement(self):  
+        self.x += self.x_vel
+        self.y += self.y_vel
+
+        self.rect.x = int(self.x)
+        self.rect.y = int(self.y)
+
+        if pygame.time.get_ticks() - self.spawn_time > self.bullet_lifetime:
+            self.kill() 
+
+    def update(self):
+        self.bullet_movement()
+
+player = Player()
+
+all_sprites_group = pygame.sprite.Group()
+bullet_group = pygame.sprite.Group()
+
+all_sprites_group.add(player)
+
+while True:
+    keys = pygame.key.get_pressed()
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            pygame.quit()
+            exit()
+
+    screen.blit(background, (0, 0))
+
+    all_sprites_group.draw(screen)
+    all_sprites_group.update()
+    # pygame.draw.rect(screen, "red", player.hitbox_rect, width=2)
+    # pygame.draw.rect(screen, "yellow", player.rect, width=2)
+
+    pygame.display.update()
+    clock.tick(FPS)
