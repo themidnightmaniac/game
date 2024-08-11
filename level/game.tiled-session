@@ -1,0 +1,40 @@
+{
+    "Map/SizeTest": {
+        "height": 4300,
+        "width": 2
+    },
+    "activeFile": "level.tmx",
+    "expandedProjectPaths": [
+    ],
+    "fileStates": {
+        "level.tmx": {
+            "scale": 0.33,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": 1113.6363636363635,
+                "y": 1701.5151515151515
+            }
+        },
+        "level.tmx#Floor N Walls": {
+            "scaleInDock": 1
+        }
+    },
+    "last.imagePath": "/home/ncho/Documents/Coding/game/images",
+    "map.height": 35,
+    "map.lastUsedFormat": "tmx",
+    "map.tileHeight": 64,
+    "map.tileWidth": 64,
+    "map.width": 40,
+    "openFiles": [
+        "level.tmx"
+    ],
+    "project": "game.tiled-project",
+    "recentFiles": [
+        "level.tmx"
+    ],
+    "tileset.embedInMap": true,
+    "tileset.tileSize": {
+        "height": 64,
+        "width": 64
+    }
+}
