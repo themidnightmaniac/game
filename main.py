@@ -1,37 +1,38 @@
-import pygame
 from math import atan2, degrees
 from os.path import join
-from os import walk
-from random import randint
+import pygame
 from  pytmx.util_pygame import load_pygame
-from random import randint
 
 
-WIN_W, WIN_H, = 1920, 1080
+WIN_W, WIN_H, = 800, 600
 TILE_SIZE = 64
 SHOOTING_COOLDOWN = 150
 BULLET_SPEED = 1000
 FPS = 120
 
 class AllSprites(pygame.sprite.Group):
+    """Groups sprites for easier bliting and changes their drawing method"""
     def __init__(self):
         super().__init__()
         self.display_surface = pygame.display.get_surface()
         self.offset = pygame.Vector2(0,0)
 
     def draw(self, target_pos):
+        """Custom drawing method"""
         self.offset.x = -(target_pos[0] - WIN_W //2)
         self.offset.y = -(target_pos[1] - WIN_H //2)
         for sprite in self:
             self.display_surface.blit(sprite.image, sprite.rect.topleft + self.offset)
 
 class Sprite(pygame.sprite.Sprite):
+    """Aling sprites in the same way as in tiled"""
     def __init__(self, pos, surf, groups):
         super().__init__(groups)
         self.image = surf
         self.rect = self.image.get_frect(topleft = pos)
 
 class Bullet(pygame.sprite.Sprite):
+    """Manages the movement and displaying of bullets"""
     def __init__(self, surf, pos, direction, groups, angle):
         super().__init__(groups)
         self.image = surf
@@ -43,50 +44,60 @@ class Bullet(pygame.sprite.Sprite):
         self.direction = direction
         self.speed = BULLET_SPEED
 
-    def rotate_bullet(self):
+    def rotate(self):
+        """Rotates the bullet sprite so it is aligned with the angle it was fired from"""
         self.image = pygame.transform.rotozoom(self.bullet_surf, self.angle, 1)
         self.rect = self.image.get_rect(center = self.rect.center)
 
     def update(self, dt):
+        """Moves the bullet and calls the rotate method"""
         self.rect.center += self.direction * self.speed * dt
-        self.rotate_bullet()
+        self.rotate()
 
 class CollisionSprite(pygame.sprite.Sprite):
+    """Groups all sprites that have collisions"""
     def __init__(self, pos, surf, groups):
         super().__init__(groups)
         self.image = surf
         self.rect = self.image.get_frect(topleft = pos)
 
 class Player(pygame.sprite.Sprite):
+    """Manages player movement, direction, rotation, and collision"""
     def __init__(self, pos, groups, collision_sprites):
         super().__init__(groups)
         self.image = pygame.image.load(join('images', 'player.png')).convert_alpha()
         self.player_surf = self.image
         self.rect = self.image.get_frect(center = pos)
         self.hitbox_rect = self.rect.inflate(0, 0)
+        self.rotation = 0
+        self.angle = 0
 
-        self.direction = pygame.math.Vector2()
+        self.direction = pygame.Vector2()
         self.speed = 500
         self.collision_sprites = collision_sprites
 
         self.pos = pygame.Vector2(WIN_W / 2, WIN_H / 2)
 
     def get_direction(self):
+        """Determines the direction which the player is facing relative to the mouse"""
         mouse_pos = pygame.Vector2(pygame.mouse.get_pos())
         self.rotation = (mouse_pos - self.pos).normalize()
 
     def rotate(self):
+        """Rotates the player sprite so it is aligned to the mouse"""
         self.angle = degrees(atan2(self.rotation.x, self.rotation.y)) + 180
         self.image = pygame.transform.rotozoom(self.player_surf, self.angle, 1)
         self.rect = self.image.get_rect(center = self.hitbox_rect.center)
 
     def input(self):
+        """Determines the player movement direction"""
         keys = pygame.key.get_pressed()
         self.direction.x = int(keys[pygame.K_d]) - int(keys[pygame.K_a])
         self.direction.y = int(keys[pygame.K_s]) - int(keys[pygame.K_w])
         self.direction = self.direction.normalize() if self.direction else self.direction
 
     def move(self, dt):
+        """Moves player using values from self.input()"""
         self.hitbox_rect.x += self.direction.x * self.speed * dt
         self.collision('horizontal')
         self.hitbox_rect.y += self.direction.y * self.speed * dt
@@ -94,22 +105,29 @@ class Player(pygame.sprite.Sprite):
         self.rect.center = self.hitbox_rect.center
 
     def collision(self, direction):
+        """Checks for player collision with the sprites in the collision sprites group"""
         for sprite in self.collision_sprites:
             if sprite.rect.colliderect(self.hitbox_rect):
                 if direction == 'horizontal':
-                    if self.direction.x > 0: self.hitbox_rect.right = sprite.rect.left
-                    if self.direction.x < 0: self.hitbox_rect.left = sprite.rect.right
+                    if self.direction.x > 0:
+                        self.hitbox_rect.right = sprite.rect.left
+                    if self.direction.x < 0:
+                        self.hitbox_rect.left = sprite.rect.right
                 else:
-                    if self.direction.y > 0: self.hitbox_rect.bottom = sprite.rect.top
-                    if self.direction.y < 0: self.hitbox_rect.top = sprite.rect.bottom
+                    if self.direction.y > 0:
+                        self.hitbox_rect.bottom = sprite.rect.top
+                    if self.direction.y < 0:
+                        self.hitbox_rect.top = sprite.rect.bottom
 
     def update(self, dt):
+        """Runs all the Player() methods"""
         self.get_direction()
         self.rotate()
         self.input()
         self.move(dt)
 
 class Game():
+    """Main game loop and some shooting logic"""
     def __init__(self):
         pygame.init()
         self.display_surface = pygame.display.set_mode((WIN_W, WIN_H))
@@ -129,51 +147,56 @@ class Game():
         self.gun_cooldown = SHOOTING_COOLDOWN
 
     def load_images(self):
+        """Loads images"""
         self.bullet_surf = pygame.image.load(join('images', 'bullet.png')).convert_alpha()
 
     def input(self):
+        """Gets input for shooting"""
         if pygame.mouse.get_pressed()[0] and self.can_shoot:
             pos = self.player.rect.center + self.player.direction * 50
-            Bullet(self.bullet_surf, pos, self.player.rotation, (self.all_sprites, self.bullet_sprites), self.player.angle)
+            Bullet(self.bullet_surf, pos, self.player.rotation, (self.all_sprites, self.bullet_sprites), self.player.angle)# pylint: disable=line-too-long
             self.can_shoot = False
             self.shoot_time = pygame.time.get_ticks()
 
     def gun_timer(self):
+        """Defines the delay between shots"""
         if not self.can_shoot:
             current_time = pygame.time.get_ticks()
             if current_time - self.shoot_time >= self.gun_cooldown:
                 self.can_shoot = True
 
     def setup(self):
-        map = load_pygame(join('level', 'level.tmx'))
+        """Draws the map"""
+        le_map = load_pygame(join('level', 'level.tmx'))
 
-        for x, y, image in map.get_layer_by_name('Floor').tiles(): 
+        for x, y, image in le_map.get_layer_by_name('Floor').tiles():
             Sprite((x * TILE_SIZE ,y * TILE_SIZE), image, self.all_sprites)
 
-        for obj in map.get_layer_by_name('Objects'):
+        for obj in le_map.get_layer_by_name('Objects'):
             CollisionSprite((obj.x, obj.y), obj.image, (self.all_sprites, self.collision_sprites))
 
-        for obj in map.get_layer_by_name('Collisions'):
-            CollisionSprite((obj.x, obj.y), pygame.Surface((obj.width, obj.height)), self.collision_sprites)
+        for obj in le_map.get_layer_by_name('Collisions'):
+            CollisionSprite((obj.x, obj.y), pygame.Surface((obj.width, obj.height)), self.collision_sprites) # pylint: disable=line-too-long
 
-        for obj in map.get_layer_by_name('Entities'):
+        for obj in le_map.get_layer_by_name('Entities'):
             if obj.name == 'Player':
                 self.player = Player((obj.x,obj.y), self.all_sprites, self.collision_sprites)
-                
+
     def check_bullet_collisions(self):
+        """De-spawns bullets if they touch a wall or expire TODO"""
         for bullet in self.bullet_sprites:
-            # Check if the bullet collides with any CollisionSprite
             if pygame.sprite.spritecollideany(bullet, self.collision_sprites):
-                bullet.kill()  # Remove the bullet if it collides with a CollisionSprite
+                bullet.kill()
 
     def run(self):
+        """Main game loop"""
         while self.running:
             dt = self.clock.tick(FPS) / 1000
 
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     self.running = False
-             
+
             self.gun_timer()
             self.input()
 
@@ -184,7 +207,7 @@ class Game():
 
             self.all_sprites.update(dt)
             pygame.display.update()
-    
+
         pygame.quit()
 
 if __name__ == '__main__':
