@@ -7,10 +7,25 @@ from  pytmx.util_pygame import load_pygame
 WIN_W, WIN_H, = 800, 600
 TILE_SIZE = 64
 SHOOTING_COOLDOWN = 150
-BULLET_SPEED = 1000
-FPS = 120
+BULLET_SPEED = 2000
+FPS = 60
+BULLET_OFFSET = pygame.Vector2(10,10)
 
-class AllSprites(pygame.sprite.Group):
+class PickUps(pygame.sprite.Sprite):
+    """Manages the animation and displaying of the pickups"""
+    def __init__(self, pos, name, surf, groups):
+        super().__init__(groups)
+        self.image = pygame.Surface((50,50))
+        self.image.fill((255, 0, 0))
+        self.rect = self.image.get_frect(topleft = pos)
+        self.name = name
+
+    def collect(self):
+        """Handle the pickup collection logic here"""
+        print(f"Picked up: {self.name}")
+        self.kill()  # Remove the pickup from the game
+
+class AllSprites(pygame.sprite.LayeredUpdates):
     """Groups sprites for easier bliting and changes their drawing method"""
     def __init__(self):
         super().__init__()
@@ -50,9 +65,9 @@ class Bullet(pygame.sprite.Sprite):
         self.rect = self.image.get_rect(center = self.rect.center)
 
     def update(self, dt):
-        """Moves the bullet and calls the rotate method"""
-        self.rect.center += self.direction * self.speed * dt
+        """Calls the rotate method and THEN moves the bullet"""
         self.rotate()
+        self.rect.center += self.direction * self.speed * dt
 
 class CollisionSprite(pygame.sprite.Sprite):
     """Groups all sprites that have collisions"""
@@ -71,7 +86,6 @@ class Player(pygame.sprite.Sprite):
         self.hitbox_rect = self.rect.inflate(0, 0)
         self.rotation = 0
         self.angle = 0
-
         self.direction = pygame.Vector2()
         self.speed = 500
         self.collision_sprites = collision_sprites
@@ -92,7 +106,7 @@ class Player(pygame.sprite.Sprite):
     def input(self):
         """Determines the player movement direction"""
         keys = pygame.key.get_pressed()
-        self.direction.x = int(keys[pygame.K_d]) - int(keys[pygame.K_a])
+        self.direction.x = int(keys[pygame.K_d]) - int(keys[pygame.K_a ])
         self.direction.y = int(keys[pygame.K_s]) - int(keys[pygame.K_w])
         self.direction = self.direction.normalize() if self.direction else self.direction
 
@@ -146,14 +160,22 @@ class Game():
         self.shoot_time = 0
         self.gun_cooldown = SHOOTING_COOLDOWN
 
+    def check_pickup_collisions(self):
+        """Check if the player has picked up any pickups"""
+        for pickup in pygame.sprite.spritecollide(self.player, self.all_sprites, False):
+            if isinstance(pickup, PickUps):
+                pickup.collect()
+
+
     def load_images(self):
         """Loads images"""
         self.bullet_surf = pygame.image.load(join('images', 'bullet.png')).convert_alpha()
 
     def input(self):
         """Gets input for shooting"""
-        if pygame.mouse.get_pressed()[0] and self.can_shoot:
-            pos = self.player.rect.center + self.player.direction * 50
+        shooting = pygame.key.get_pressed()[pygame.K_SPACE] or pygame.mouse.get_pressed()[0]
+        if shooting and self.can_shoot:
+            pos = self.player.rect.center + BULLET_OFFSET
             Bullet(self.bullet_surf, pos, self.player.rotation, (self.all_sprites, self.bullet_sprites), self.player.angle)# pylint: disable=line-too-long
             self.can_shoot = False
             self.shoot_time = pygame.time.get_ticks()
@@ -178,9 +200,14 @@ class Game():
         for obj in le_map.get_layer_by_name('Collisions'):
             CollisionSprite((obj.x, obj.y), pygame.Surface((obj.width, obj.height)), self.collision_sprites) # pylint: disable=line-too-long
 
+        for obj in le_map.get_layer_by_name('Pickups'):
+            surf = pygame.image.load(join('images', 'pillar.png'))
+            self.pick_ups = PickUps((obj.x, obj.y), obj.name, surf, (self.all_sprites, self.collision_sprites)) # pylint: disable=line-too-long
+
         for obj in le_map.get_layer_by_name('Entities'):
             if obj.name == 'Player':
                 self.player = Player((obj.x,obj.y), self.all_sprites, self.collision_sprites)
+                self.all_sprites.change_layer(self.player, 2)
 
     def check_bullet_collisions(self):
         """De-spawns bullets if they touch a wall or expire TODO"""
@@ -201,6 +228,7 @@ class Game():
             self.input()
 
             self.check_bullet_collisions()
+            self.check_pickup_collisions()
 
             self.display_surface.fill('black')
             self.all_sprites.draw(self.player.rect.center)
