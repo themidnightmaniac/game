@@ -1,29 +1,47 @@
 from math import atan2, degrees
+from random import randint
 from os.path import join
 import pygame
 from  pytmx.util_pygame import load_pygame
 
 
-WIN_W, WIN_H, = 800, 600
+WIN_W, WIN_H, = 1920, 1080
 TILE_SIZE = 64
 SHOOTING_COOLDOWN = 150
 BULLET_SPEED = 2000
 FPS = 60
 BULLET_OFFSET = pygame.Vector2(10,10)
+import pygame
 
 class PickUps(pygame.sprite.Sprite):
-    """Manages the animation and displaying of the pickups"""
+    """Manages the rotation of pickup sprites"""
     def __init__(self, pos, name, surf, groups):
         super().__init__(groups)
-        self.image = pygame.Surface((50,50))
-        self.image.fill((255, 0, 0))
-        self.rect = self.image.get_frect(topleft = pos)
+        self.original_image = surf.convert_alpha()  # Ensure image has per-pixel alpha
+        self.image = self.original_image
+        self.rect = self.image.get_rect(topleft=pos)
         self.name = name
+
+        # Initialize rotation attributes
+        self.rotation_angle = randint(0, 360)
+        self.rotation_speed = randint(30, 50)
 
     def collect(self):
         """Handle the pickup collection logic here"""
         print(f"Picked up: {self.name}")
-        self.kill()  # Remove the pickup from the game
+        self.kill()
+
+    def update(self, dt):
+        """Updates the rotation of the pickup"""
+        # Update rotation angle
+        self.rotation_angle += self.rotation_speed * dt
+        if self.rotation_angle >= 360:
+            self.rotation_angle -= 360
+
+        # Rotate the image
+        rotated_image = pygame.transform.rotate(self.original_image, self.rotation_angle)
+        self.rect = rotated_image.get_rect(center=self.rect.center)  # Update rect position
+        self.image = rotated_image
 
 class AllSprites(pygame.sprite.LayeredUpdates):
     """Groups sprites for easier bliting and changes their drawing method"""
@@ -201,8 +219,7 @@ class Game():
             CollisionSprite((obj.x, obj.y), pygame.Surface((obj.width, obj.height)), self.collision_sprites) # pylint: disable=line-too-long
 
         for obj in le_map.get_layer_by_name('Pickups'):
-            surf = pygame.image.load(join('images', 'pillar.png'))
-            self.pick_ups = PickUps((obj.x, obj.y), obj.name, surf, (self.all_sprites, self.collision_sprites)) # pylint: disable=line-too-long
+            self.pick_ups = PickUps((obj.x, obj.y), obj.name, obj.image, (self.all_sprites, self.collision_sprites)) # pylint: disable=line-too-long
 
         for obj in le_map.get_layer_by_name('Entities'):
             if obj.name == 'Player':
