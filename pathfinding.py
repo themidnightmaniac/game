@@ -1,6 +1,6 @@
-import pygame
 import heapq
 import random
+import pygame
 
 # Constants
 WIDTH, HEIGHT = 800, 600
