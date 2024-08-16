@@ -17,7 +17,7 @@ class PickUps(pygame.sprite.Sprite):
         super().__init__(groups)
         self.original_image = surf.convert_alpha()
         self.image = self.original_image
-        self.rect = self.image.get_rect(topleft = pos)
+        self.rect = self.image.get_rect(topleft=pos)
         self.name = name
 
         self.rotation_angle = randint(0, 360)
@@ -25,11 +25,10 @@ class PickUps(pygame.sprite.Sprite):
 
     def collect(self, player):
         """Handle the pickup logic"""
-        if self.name == 'Medkit':
-            player.collect_health(1)
-        elif self.name == 'Ammo Box':
-            player.collect_ammo(20)
-
+        if self.name == 'Gun':
+            player.change_image('player_gun.png')
+            player.has_a_gun = True
+            print("oi")
         self.kill()
 
     def update(self, dt):
@@ -103,13 +102,25 @@ class Player(pygame.sprite.Sprite):
         self.rotation = 0
         self.angle = 0
         self.direction = pygame.Vector2()
-        self.speed = 500
+        self.velocity = pygame.Vector2()
+        self.acceleration = 10000000000000000000000
+        self.deceleration = 500
+        self.max_speed = 500
         self.collision_sprites = collision_sprites
 
         self.health = 3
         self.ammo = 1000000
 
         self.pos = pygame.Vector2(WIN_W / 2, WIN_H / 2)
+
+        self.has_a_gun = False
+
+    def change_image(self, image_name):
+        """Change the player's image to the specified image."""
+        self.image = pygame.image.load(join('images', image_name)).convert_alpha()
+        self.player_surf = self.image
+        self.rect = self.image.get_rect(center=self.hitbox_rect.center)
+        self.rotate()
 
     def collect_health(self, amount):
         """Increase player health"""
@@ -134,31 +145,63 @@ class Player(pygame.sprite.Sprite):
     def input(self):
         """Determines the player movement direction"""
         keys = pygame.key.get_pressed()
-        self.direction.x = int(keys[pygame.K_d]) - int(keys[pygame.K_a])
-        self.direction.y = int(keys[pygame.K_s]) - int(keys[pygame.K_w])
-        self.direction = self.direction.normalize() if self.direction else self.direction
+        target_direction = pygame.Vector2(
+            int(keys[pygame.K_d]) - int(keys[pygame.K_a]),
+            int(keys[pygame.K_s]) - int(keys[pygame.K_w])
+        )
+        if target_direction.length() > 0:
+            target_direction.normalize_ip()
+        self.direction = target_direction
 
     def move(self, dt):
         """Moves player using values from self.input()"""
-        self.hitbox_rect.x += self.direction.x * self.speed * dt
+        # Calculate desired velocity based on acceleration
+        if self.direction.length() > 0:
+            # Accelerate
+            self.velocity += self.direction * self.acceleration * dt
+        else:
+            # Decelerate
+            if self.velocity.length() > 0:
+                deceleration_vector = self.velocity.normalize() * self.deceleration * dt
+                if self.velocity.length() > deceleration_vector.length():
+                    self.velocity -= deceleration_vector
+                else:
+                    self.velocity = pygame.Vector2()
+
+        # Cap the velocity at max speed
+        if self.velocity.length() > self.max_speed:
+            self.velocity.scale_to_length(self.max_speed)
+
+        # Move player and handle collisions
+        self.handle_movement(dt)
+
+    def handle_movement(self, dt):
+        """Handle movement and collisions"""
+        # Move horizontally and check for collisions
+        self.hitbox_rect.x += self.velocity.x * dt
         self.collision('horizontal')
-        self.hitbox_rect.y += self.direction.y * self.speed * dt
+
+        # Move vertically and check for collisions
+        self.hitbox_rect.y += self.velocity.y * dt
         self.collision('vertical')
+
+        # Update player rect
         self.rect.center = self.hitbox_rect.center
 
     def collision(self, direction):
         """Checks for player collision with the sprites in the collision sprites group"""
         for sprite in self.collision_sprites:
             if sprite.rect.colliderect(self.hitbox_rect):
+                self.velocity *= 0.955
                 if direction == 'horizontal':
-                    if self.direction.x > 0:
+                    if self.velocity.x > 0:
                         self.hitbox_rect.right = sprite.rect.left
-                    if self.direction.x < 0:
+                    if self.velocity.x < 0:
                         self.hitbox_rect.left = sprite.rect.right
                 else:
-                    if self.direction.y > 0:
+                    if self.velocity.y > 0:
                         self.hitbox_rect.bottom = sprite.rect.top
-                    if self.direction.y < 0:
+                    if self.velocity.y < 0:
                         self.hitbox_rect.top = sprite.rect.bottom
 
     def update(self, dt):
@@ -167,6 +210,7 @@ class Player(pygame.sprite.Sprite):
         self.rotate()
         self.input()
         self.move(dt)
+
 
 class Game():
     """Main game loop and some shooting logic"""
@@ -192,12 +236,12 @@ class Game():
         """Check if the player has picked up any pickups"""
         for pickup in pygame.sprite.spritecollide(self.player, self.all_sprites, False):
             if isinstance(pickup, PickUps):
-                pickup.collect(self.player)  # Pass the player instance
+                pickup.collect(self.player)
 
     def input(self):
         """Gets input for shooting"""
         shooting = pygame.key.get_pressed()[pygame.K_SPACE] or pygame.mouse.get_pressed()[0]
-        if shooting and self.can_shoot:
+        if shooting and self.player.has_a_gun and self.can_shoot:
             if self.player.ammo > 0:
                 pos = self.player.rect.center + BULLET_OFFSET
                 Bullet(self.bullet_surf, pos, self.player.rotation, (self.all_sprites, self.bullet_sprites), self.player.angle)

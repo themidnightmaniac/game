@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.11.0" orientation="orthogonal" renderorder="right-down" width="40" height="32" tilewidth="64" tileheight="64" infinite="0" nextlayerid="7" nextobjectid="84">
+<map version="1.10" tiledversion="1.11.0" orientation="orthogonal" renderorder="right-down" width="40" height="32" tilewidth="64" tileheight="64" infinite="0" nextlayerid="7" nextobjectid="85">
  <tileset firstgid="1" name="Floor N Walls" tilewidth="64" tileheight="64" tilecount="64" columns="8">
   <image source="../images/tileset.png" width="512" height="512"/>
  </tileset>
@@ -43,13 +43,7 @@
 </data>
  </layer>
  <objectgroup id="6" name="Pickups">
-  <object id="63" name="Medkit" gid="65" x="750.667" y="1426.67" width="32" height="32"/>
-  <object id="64" name="Medkit" gid="65" x="1716" y="1453" width="32" height="32"/>
-  <object id="65" name="Medkit" gid="65" x="909" y="786" width="32" height="32"/>
-  <object id="66" name="Medkit" gid="65" x="1774" y="652" width="32" height="32"/>
-  <object id="72" name="Ammo Box" gid="66" x="912" y="1488" width="32" height="32"/>
-  <object id="73" name="Ammo Box" gid="66" x="1362" y="880.667" width="32" height="32"/>
-  <object id="74" name="Ammo Box" gid="66" x="1261.33" y="1487.33" width="32" height="32"/>
+  <object id="84" name="Gun" gid="66" x="1070.25" y="1174.03" width="32" height="32"/>
  </objectgroup>
  <objectgroup id="5" name="Entities">
   <object id="22" name="Player" x="1088" y="1600">
@@ -91,7 +85,6 @@
   <object id="51" name="Enemy" x="768" y="960">
    <point/>
   </object>
-  <object id="83" x="640" y="1504" width="384" height="32"/>
  </objectgroup>
  <objectgroup id="4" name="Objects"/>
  <objectgroup id="3" name="Collisions">
@@ -123,5 +116,6 @@
   <object id="79" x="960" y="1536" width="64" height="128"/>
   <object id="81" x="1024" y="1664" width="128" height="64"/>
   <object id="82" x="1152" y="1536" width="64" height="128"/>
+  <object id="83" x="640" y="1504" width="384" height="32"/>
  </objectgroup>
 </map>
